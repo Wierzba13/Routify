@@ -45,7 +45,7 @@ public class RouteFragment extends Fragment {
 
     // UI Elements
     private MaterialButton btnStart;
-    private FloatingActionButton btnPause, btnResume;
+    private FloatingActionButton btnPause, btnResume, btnRecenter;
     private MaterialButton btnStop;
     private LinearLayout layoutPaused;
     private MapView map;
@@ -58,8 +58,7 @@ public class RouteFragment extends Fragment {
     private Polyline currentPolyline;
     private FusedLocationProviderClient fusedLocationClient;
     private PermissionManager permissionManager;
-
-    // Usunięto: Context context = requireContext(); -> To powodowało błąd przy uruchamianiu!
+    private boolean isAutoCenter = true;
 
     @Nullable
     @Override
@@ -148,12 +147,11 @@ public class RouteFragment extends Fragment {
         return view;
     }
 
-    // Metoda przyjmuje teraz View, aby móc szukać elementów
     private void initializeViews(View view) {
         map = view.findViewById(R.id.map);
         tvDistance = view.findViewById(R.id.tvDistance);
         btnStart = view.findViewById(R.id.btnStart);
-        // Usunięto duplikat btnStart
+        btnRecenter = view.findViewById(R.id.btnRecenter);
         btnStop = view.findViewById(R.id.btnStop);
         btnPause = view.findViewById(R.id.btnPause);
         btnResume = view.findViewById(R.id.btnResume);
@@ -176,13 +174,26 @@ public class RouteFragment extends Fragment {
         currentMarker.setIcon(ContextCompat.getDrawable(requireContext(), R.drawable.baseline_location_on_24));
 
         map.getOverlays().add(currentMarker);
+
+        map.setOnTouchListener((v, event) -> {
+            if((event.getAction() == android.view.MotionEvent.ACTION_DOWN
+                || event.getAction() == android.view.MotionEvent.ACTION_MOVE) && isAutoCenter) {   // Jezeli uzytkownik dotknie mapy (zacznie przesuwac) w trybie automatycznego centrowania
+                isAutoCenter = false;
+                updateRecenterButtonState();
+            }
+            return false;
+        });
     }
 
     private void setupButtons() {
         btnStart.setOnClickListener(v -> {
             if (permissionManager.hasAllPermissions()) {
                 sendCommandToService("START_TRACKING");
+
+                for (Polyline poly : allPolylines) map.getOverlays().remove(poly); // Cleaning map
+                allPolylines.clear();
                 startNewSegment();
+
                 map.invalidate();
                 updateUI(UIState.TRACKING);
             } else {
@@ -214,12 +225,26 @@ public class RouteFragment extends Fragment {
             map.invalidate();
         });
 
+        btnRecenter.setOnClickListener(v -> {
+            isAutoCenter = true;
+            centerMapOnUser();
+            updateRecenterButtonState();
+        });
+
         if (TrackingService.isTracking) {
             if (TrackingService.isPaused) {
                 updateUI(UIState.PAUSED);
             } else {
                 updateUI(UIState.TRACKING);
             }
+        }
+    }
+
+    private void updateRecenterButtonState() {
+        if (isAutoCenter) {
+            btnRecenter.setImageTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#009688")));
+        } else {
+            btnRecenter.setImageTintList(android.content.res.ColorStateList.valueOf(Color.GRAY));
         }
     }
 
@@ -292,16 +317,23 @@ public class RouteFragment extends Fragment {
         GeoPoint newPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
 
         if (currentPolyline == null) {
-            startNewSegment();
+            if (!TrackingService.routeSegments.isEmpty()) {
+                restorePath();
+            } else {
+                startNewSegment();
+            }
         }
 
-        currentPolyline.addPoint(newPoint);
+        // Dodaj punkt TYLKO jeśli mamy aktywną linię
+        if (currentPolyline != null) {
+            currentPolyline.addPoint(newPoint);
+        }
 
         if (currentMarker != null) {
             currentMarker.setPosition(newPoint);
         }
 
-        map.getController().animateTo(newPoint);
+        if(isAutoCenter) map.getController().animateTo(newPoint);
         map.invalidate();
     }
 
@@ -345,6 +377,8 @@ public class RouteFragment extends Fragment {
         if (permissionManager != null && permissionManager.hasLocationPermission()) {
             centerMapOnUser();
         }
+
+        restorePath();
     }
 
     @Override
@@ -353,5 +387,44 @@ public class RouteFragment extends Fragment {
         if (map != null) {
             map.onPause();
         }
+    }
+
+    private void restorePath() {
+        if (map == null) return;
+
+        // 1. Wyczyść stare linie z mapy (żeby nie dublować przy odświeżaniu)
+        for (Polyline poly : allPolylines) {
+            map.getOverlays().remove(poly);
+        }
+        allPolylines.clear();
+        currentPolyline = null;
+
+        // 2. Pobierz historię z serwisu
+        ArrayList<ArrayList<GeoPoint>> segments = TrackingService.routeSegments;
+
+        if (segments.isEmpty()) return;
+
+        // 3. Pętla przez wszystkie segmenty (kawałki trasy)
+        for (ArrayList<GeoPoint> segmentPoints : segments) {
+            if (segmentPoints.isEmpty()) continue; // Pusty segment pomijamy
+
+            Polyline polyline = new Polyline();
+            polyline.setColor(Color.RED);
+            polyline.setWidth(15f);
+
+            // Dodajemy punkty z pamięci serwisu do linii
+            for (GeoPoint p : segmentPoints) {
+                polyline.addPoint(p);
+            }
+
+            // Dodajemy linię do mapy i do naszej lokalnej listy
+            map.getOverlays().add(polyline);
+            allPolylines.add(polyline);
+
+            // Ostatni segment staje się tym "aktywnym", do którego dopisujemy bieżące punkty
+            currentPolyline = polyline;
+        }
+
+        map.invalidate();
     }
 }

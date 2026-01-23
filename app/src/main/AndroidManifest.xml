@@ -24,6 +24,7 @@
         android:theme="@style/Theme.Routify"
         android:usesCleartextTraffic="true" >
 
+        <!--    Defining TrackingService service for location    -->
         <service
             android:name=".TrackingService"
             android:enabled="true"

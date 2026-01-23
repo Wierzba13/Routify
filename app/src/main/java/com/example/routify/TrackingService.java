@@ -23,6 +23,9 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
+import org.osmdroid.util.GeoPoint;
+import java.util.ArrayList;
+
 public class TrackingService extends Service {
 
     private FusedLocationProviderClient fusedLocationClient;
@@ -40,6 +43,7 @@ public class TrackingService extends Service {
     // ---------------------------------------------------------
 
     public static boolean isTracking = false;
+    public static ArrayList<ArrayList<GeoPoint>> routeSegments = new ArrayList<>();
 
     @Override
     public void onCreate() {
@@ -60,9 +64,13 @@ public class TrackingService extends Service {
     private void calculateDistance(Location newLocation) {
         if (isPaused) return;
 
-        // --- NOWOŚĆ: Przekazujemy lokalizację do Activity, żeby narysować kreskę ---
+        if (!routeSegments.isEmpty()) {
+            ArrayList<GeoPoint> currentSegment = routeSegments.get(routeSegments.size() - 1);
+            currentSegment.add(new GeoPoint(newLocation.getLatitude(), newLocation.getLongitude()));
+        }
+
+        // We're passing localization to activity for drawing a lines
         locationLive.postValue(newLocation);
-        // --------------------------------------------------------------------------
 
         if (lastLocation != null) {
             float distance = lastLocation.distanceTo(newLocation);
@@ -81,6 +89,13 @@ public class TrackingService extends Service {
         if (intent != null) {
             String action = intent.getAction();
             if ("START_TRACKING".equals(action)) {
+                routeSegments.clear();
+                routeSegments.add(new ArrayList<>());
+                isPaused = false;
+                totalDistanceMeters = 0;
+                lastLocation = null;
+                distanceInKm.postValue(0.0);
+
                 startForegroundService();
                 startLocationUpdates();
             } else if ("PAUSE_TRACKING".equals(action)) {
@@ -90,7 +105,9 @@ public class TrackingService extends Service {
             // --- OBSŁUGA WZNOWIENIA ---
             else if ("RESUME_TRACKING".equals(action)) {
                 isPaused = false;
-                lastLocation = null; // WAŻNE: Resetujemy ostatni punkt, żeby nie doliczyło skoku
+                lastLocation = null; // IMPORTANT: Reseting last location is important, because otherwise it will draw a line for a pause moment
+                routeSegments.add(new ArrayList<>());
+
                 updateNotification("Liczenie kilometrów...");
             }
             else if ("STOP_TRACKING".equals(action)) {
@@ -154,11 +171,12 @@ public class TrackingService extends Service {
         isTracking = true;
         // Nie resetujemy totalDistanceMeters tutaj, jeśli chcemy obsługiwać Pauzę bez resetu,
         // ale zgodnie z Twoją logiką startujemy od nowa:
-        totalDistanceMeters = 0;
-        lastLocation = null;
-        distanceInKm.postValue(0.0);
+        isPaused = false;
+//        totalDistanceMeters = 0;
+//        lastLocation = null;
+//        distanceInKm.postValue(0.0);
 
-        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000)
+        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500)
                 .setMinUpdateDistanceMeters(MIN_METERS_DIFF)
                 .build();
 
