@@ -14,10 +14,10 @@
         android:layout_height="0dp"
         app:defaultNavHost="true"
         app:navGraph="@navigation/menu_navigation"
-        app:layout_constraintBottom_toTopOf="@id/bottomMenu"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomMenu" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomMenu"
