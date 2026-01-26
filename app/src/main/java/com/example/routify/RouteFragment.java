@@ -213,6 +213,14 @@ public class RouteFragment extends Fragment {
         });
 
         btnStop.setOnClickListener(v -> {
+            Double distance = TrackingService.distanceInKm.getValue();
+            double finalDist = (distance != null) ? distance : 0.0;
+
+            new Thread(() -> {
+                Route newRoute = new Route(finalDist, System.currentTimeMillis(), "Nowa trasa", -1, "", 0.0);
+                AppDatabase.getInstance(requireContext()).routeDao().insert(newRoute);
+            }).start();
+
             sendCommandToService("STOP_TRACKING");
             updateUI(UIState.IDLE);
             tvDistance.setText("0.00 km");
@@ -256,6 +264,22 @@ public class RouteFragment extends Fragment {
             context.startForegroundService(intent);
         } else {
             context.startService(intent);
+        }
+    }
+    private void saveRouteToHistory() {
+        Double distanceValue = TrackingService.distanceInKm.getValue();
+        final double finalDistance = (distanceValue != null) ? distanceValue : 0.0;
+        final long currentTime = System.currentTimeMillis();
+
+        if (finalDistance > 0.02) {
+            new Thread(() -> {
+                Route routeToSave = new Route(finalDistance, currentTime, "Nowa trasa", -1, "", 0.0);
+                AppDatabase.getInstance(requireContext()).routeDao().insert(routeToSave);
+
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "Kurs zapisany!", Toast.LENGTH_SHORT).show()
+                );
+            }).start();
         }
     }
 
