@@ -8,10 +8,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
+import java.util.Locale;
 
 public class VehicleAdapter extends RecyclerView.Adapter<VehicleAdapter.VehicleViewHolder> {
 
-    private final List<Vehicle> vehicleList;
+    private List<Vehicle> vehicleList;
 
     public VehicleAdapter(List<Vehicle> vehicleList) {
         this.vehicleList = vehicleList;
@@ -28,7 +29,7 @@ public class VehicleAdapter extends RecyclerView.Adapter<VehicleAdapter.VehicleV
     public void onBindViewHolder(@NonNull VehicleViewHolder holder, int position) {
         Vehicle vehicle = vehicleList.get(position);
         holder.tvTitle.setText(vehicle.getTitle());
-        holder.tvSubtitle.setText(vehicle.getConsumption());
+        holder.tvSubtitle.setText(String.format(Locale.US, "%.1f l/100km", vehicle.getConsumption()));
         holder.tvLabelBottom.setText(vehicle.getActionText());
         holder.ivVehicle.setImageResource(vehicle.getImageResId());
     }
@@ -49,5 +50,10 @@ public class VehicleAdapter extends RecyclerView.Adapter<VehicleAdapter.VehicleV
             tvSubtitle = itemView.findViewById(R.id.tvSubtitle);
             tvLabelBottom = itemView.findViewById(R.id.tvLabelBottom);
         }
+    }
+    public void setVehicles(List<Vehicle> vehicles) {
+        this.vehicleList = vehicles;
+
+        notifyDataSetChanged();
     }
 }

@@ -46,7 +46,9 @@ dependencies {
     /*
         ---------- Application additional dependencies ----------
      */
-
+    // DB components
+    implementation("androidx.room:room-runtime:2.6.1")
+    annotationProcessor("androidx.room:room-compiler:2.6.1")
     // Menu
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.navigation:navigation-fragment:2.7.0")
