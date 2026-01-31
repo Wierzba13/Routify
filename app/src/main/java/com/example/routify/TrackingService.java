@@ -27,7 +27,6 @@ import org.osmdroid.util.GeoPoint;
 import java.util.ArrayList;
 
 public class TrackingService extends Service {
-
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
     private Location lastLocation;
@@ -38,10 +37,8 @@ public class TrackingService extends Service {
 
     public static MutableLiveData<Double> distanceInKm = new MutableLiveData<>();
 
-    // --- NOWOŚĆ: LiveData do przekazywania pozycji na mapę ---
+    // LiveData to pass position to map
     public static MutableLiveData<Location> locationLive = new MutableLiveData<>();
-    // ---------------------------------------------------------
-
     public static boolean isTracking = false;
     public static ArrayList<ArrayList<GeoPoint>> routeSegments = new ArrayList<>();
 
@@ -74,7 +71,7 @@ public class TrackingService extends Service {
 
         if (lastLocation != null) {
             float distance = lastLocation.distanceTo(newLocation);
-            if (distance > MIN_METERS_DIFF) { // Filtr szumów
+            if (distance > MIN_METERS_DIFF) { // FILTER, VERY IMPORTANT
                 totalDistanceMeters += distance;
                 lastLocation = newLocation;
                 distanceInKm.postValue(totalDistanceMeters / 1000.0);
@@ -100,15 +97,15 @@ public class TrackingService extends Service {
                 startLocationUpdates();
             } else if ("PAUSE_TRACKING".equals(action)) {
                 isPaused = true;
-                updateNotification("Trening wstrzymany");
+                updateNotification("Trasa wstrzymana");
             }
-            // --- OBSŁUGA WZNOWIENIA ---
+            // Resume handling
             else if ("RESUME_TRACKING".equals(action)) {
                 isPaused = false;
-                lastLocation = null; // IMPORTANT: Reseting last location is important, because otherwise it will draw a line for a pause moment
+                lastLocation = null; // IMPORTANT => Reseting last location is important, because otherwise it will draw a line for a pause moment
                 routeSegments.add(new ArrayList<>());
 
-                updateNotification("Liczenie kilometrów...");
+                updateNotification("Naliczanie kilometrów...");
             }
             else if ("STOP_TRACKING".equals(action)) {
                 stopLocationUpdates();
@@ -122,10 +119,10 @@ public class TrackingService extends Service {
     private void updateNotification(String contentText) {
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
         Notification notification = new NotificationCompat.Builder(this, "location_channel")
-                .setContentTitle("Yesy")
+                .setContentTitle("Routify")
                 .setContentText(contentText)
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-                .setOnlyAlertOnce(true) // Nie wibruj przy aktualizacji tekstu
+                .setOnlyAlertOnce(true) // Dont vibrate when text updates
                 .build();
         notificationManager.notify(1, notification);
     }
@@ -152,14 +149,11 @@ public class TrackingService extends Service {
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .build();
 
-        //startForeground(1, notification);
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Android 10+ (a szczególnie 14) wymaga podania typu serwisu
+            // Android 10+ (especially 14) requires to pass a service type
             try {
                 startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
             } catch (Exception e) {
-                // Fallback dla pewności
                 startForeground(1, notification);
             }
         } else {
@@ -169,12 +163,7 @@ public class TrackingService extends Service {
 
     private void startLocationUpdates() {
         isTracking = true;
-        // Nie resetujemy totalDistanceMeters tutaj, jeśli chcemy obsługiwać Pauzę bez resetu,
-        // ale zgodnie z Twoją logiką startujemy od nowa:
         isPaused = false;
-//        totalDistanceMeters = 0;
-//        lastLocation = null;
-//        distanceInKm.postValue(0.0);
 
         LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500)
                 .setMinUpdateDistanceMeters(MIN_METERS_DIFF)

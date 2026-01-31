@@ -4,11 +4,9 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#121212">
+        android:layout_height="match_parent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -30,7 +28,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardBackgroundColor="#1E1E1E"
+                app:cardBackgroundColor="@color/primary"
                 app:strokeWidth="0dp">
 
                 <LinearLayout
@@ -51,7 +49,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Dystans w tym miesiącu"
-                            android:textColor="#B0B0B0"
+                            android:textColor="#e0e0e0"
                             android:textSize="14sp" />
 
                         <TextView
@@ -71,7 +69,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="20dp"
-                app:cardBackgroundColor="#1E1E1E"
+                app:cardBackgroundColor="@color/primary"
                 app:strokeWidth="0dp">
 
                 <LinearLayout
@@ -91,7 +89,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Paliwo w tym tygodniu"
-                            android:textColor="#B0B0B0"
+                            android:textColor="#e0e0e0"
                             android:textSize="14sp" />
 
                         <TextView
@@ -110,7 +108,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="20dp"
-                app:cardBackgroundColor="#1E1E1E"
+                app:cardBackgroundColor="@color/primary"
                 app:strokeWidth="0dp">
 
                 <LinearLayout
@@ -122,14 +120,14 @@
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginStart="16dp">
+                        android:layout_marginStart="16dp"
+                        android:orientation="vertical">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Szacowane koszty (litr = 6.50 PLN)"
-                            android:textColor="#B0B0B0"
+                            android:textColor="#e0e0e0"
                             android:textSize="14sp" />
 
                         <TextView
@@ -138,8 +136,8 @@
                             android:layout_height="wrap_content"
                             android:text="0.00 PLN"
                             android:textColor="@android:color/white"
-                            android:textStyle="bold"
-                            android:textSize="24sp" />
+                            android:textSize="24sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

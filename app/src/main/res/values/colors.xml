@@ -4,4 +4,5 @@
     <color name="white">#FFFFFFFF</color>
     <color name="primary">#4287f5</color>
     <color name="secondary">#919499</color>
+    <color name="accents">#6750a4</color>
 </resources>

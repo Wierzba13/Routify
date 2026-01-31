@@ -21,7 +21,6 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -42,16 +41,12 @@ import java.util.List;
 import java.util.Locale;
 
 public class RouteFragment extends Fragment {
-
-    // UI Elements
     private MaterialButton btnStart;
     private FloatingActionButton btnPause, btnResume, btnRecenter;
     private MaterialButton btnStop;
     private LinearLayout layoutPaused;
     private MapView map;
     private TextView tvDistance;
-
-    // Logic
     private enum UIState { IDLE, TRACKING, PAUSED }
     private Marker currentMarker;
     private List<Polyline> allPolylines = new ArrayList<>();
@@ -63,16 +58,15 @@ public class RouteFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        // 1. Najpierw inflatujemy widok
         View view = inflater.inflate(R.layout.route_fragment, container, false);
-        Context context = requireContext(); // Pobieramy kontekst bezpiecznie wewnątrz metody
+        Context context = requireContext();
 
         // OSM configuration
         Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context));
-        Configuration.getInstance().setUserAgentValue(context.getPackageName()); // Poprawka: context.getPackageName()
+        Configuration.getInstance().setUserAgentValue(context.getPackageName());
 
         // Maps tiles cache
-        File osmdroidBasePath = new File(context.getCacheDir(), "osmdroid"); // Poprawka: context.getCacheDir()
+        File osmdroidBasePath = new File(context.getCacheDir(), "osmdroid");
         osmdroidBasePath.mkdirs();
         Configuration.getInstance().setOsmdroidBasePath(osmdroidBasePath);
 
@@ -80,46 +74,34 @@ public class RouteFragment extends Fragment {
         osmdroidTileCache.mkdirs();
         Configuration.getInstance().setOsmdroidTileCache(osmdroidTileCache);
 
-        // Permissions check (opcjonalne tutaj, bo PermissionManager to obsłuży, ale zostawiam logikę)
+        // Permissions check
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
                     && ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                // Uwaga: W fragmencie lepiej używać requestPermissions zamiast ActivityCompat.requestPermissions, aby callback wrócił do fragmentu
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
             }
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
-
-        // Przekazujemy 'view' do metody inicjalizującej
         initializeViews(view);
         setupMap();
         setupButtons();
 
-        // --- OBSERWATORZY SERWISU ---
-
-        // 1. Obserwuj dystans
-        // Używamy getViewLifecycleOwner() zamiast 'this' dla bezpieczeństwa w Fragmentach
-        TrackingService.distanceInKm.observe(getViewLifecycleOwner(), new Observer<Double>() {
-            @Override
-            public void onChanged(Double km) {
-                if (tvDistance != null) {
-                    tvDistance.setText(String.format(Locale.US, "%.2f km", km));
-                }
+        // Track distance
+        TrackingService.distanceInKm.observe(getViewLifecycleOwner(), km -> {
+            if (tvDistance != null) {
+                tvDistance.setText(String.format(Locale.US, "%.2f km", km));
             }
         });
 
-        // 2. Obserwuj lokalizację
-        TrackingService.locationLive.observe(getViewLifecycleOwner(), new Observer<Location>() {
-            @Override
-            public void onChanged(Location location) {
-                if (location != null) {
-                    updateMap(location);
-                }
+        // Track localization
+        TrackingService.locationLive.observe(getViewLifecycleOwner(), location -> {
+            if (location != null) {
+                updateMap(location);
             }
         });
 
-        // Inicjalizacja Permission Managera
+        // Inicialize Permission Manager
         permissionManager = new PermissionManager(requireActivity(), new PermissionManager.PermissionCallback() {
             @Override
             public void onPermissionsGranted() {
@@ -132,7 +114,7 @@ public class RouteFragment extends Fragment {
 
             @Override
             public void onPermissionsDenied() {
-                Toast.makeText(requireContext(), "Aplikacja ma ograniczoną funkcjonalność bez uprawnień.", Toast.LENGTH_LONG).show();
+                Toast.makeText(requireContext(), "Aplikacja ma ograniczoną funkcjonalność bez wymaganych uprawnień.", Toast.LENGTH_LONG).show();
             }
         });
 
@@ -170,14 +152,13 @@ public class RouteFragment extends Fragment {
         currentMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
         currentMarker.setInfoWindow(null);
 
-        // Poprawka: użycie ContextCompat zamiast getResources().getDrawable()
         currentMarker.setIcon(ContextCompat.getDrawable(requireContext(), R.drawable.baseline_location_on_24));
 
         map.getOverlays().add(currentMarker);
 
         map.setOnTouchListener((v, event) -> {
             if((event.getAction() == android.view.MotionEvent.ACTION_DOWN
-                || event.getAction() == android.view.MotionEvent.ACTION_MOVE) && isAutoCenter) {   // Jezeli uzytkownik dotknie mapy (zacznie przesuwac) w trybie automatycznego centrowania
+                || event.getAction() == android.view.MotionEvent.ACTION_MOVE) && isAutoCenter) {
                 isAutoCenter = false;
                 updateRecenterButtonState();
             }
@@ -190,7 +171,7 @@ public class RouteFragment extends Fragment {
             if (permissionManager.hasAllPermissions()) {
                 sendCommandToService("START_TRACKING");
 
-                for (Polyline poly : allPolylines) map.getOverlays().remove(poly); // Cleaning map
+                for (Polyline poly : allPolylines) map.getOverlays().remove(poly);
                 allPolylines.clear();
                 startNewSegment();
 
@@ -257,7 +238,7 @@ public class RouteFragment extends Fragment {
     }
 
     private void sendCommandToService(String action) {
-        Context context = requireContext(); // Bezpieczne pobranie kontekstu
+        Context context = requireContext();
         Intent intent = new Intent(context, TrackingService.class);
         intent.setAction(action);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -284,7 +265,7 @@ public class RouteFragment extends Fragment {
     }
 
     private void updateUI(UIState state) {
-        if (btnStart == null) return; // Zabezpieczenie
+        if (btnStart == null) return;
 
         btnStart.setVisibility(View.GONE);
         btnPause.setVisibility(View.GONE);
@@ -307,8 +288,6 @@ public class RouteFragment extends Fragment {
     private void centerMapOnUser() {
         if (!permissionManager.hasLocationPermission()) return;
 
-        // Poprawka: usunięto rzutowanie (Executor) this, które powodowało błąd
-        // Używamy wersji metody addOnSuccessListener, która nie wymaga Executora (działa na głównym wątku)
         fusedLocationClient.getLastLocation()
                 .addOnSuccessListener(location -> {
                     if (location != null) {
@@ -330,7 +309,7 @@ public class RouteFragment extends Fragment {
                     if (location != null) {
                         updateMapWithLocation(location);
                     } else {
-                        Toast.makeText(requireContext(), "Nie udało się ustalić lokalizacji. Wyjdź na zewnątrz.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(requireContext(), "Nie udało się ustalić lokalizacji", Toast.LENGTH_LONG).show();
                     }
                 });
     }
@@ -348,7 +327,7 @@ public class RouteFragment extends Fragment {
             }
         }
 
-        // Dodaj punkt TYLKO jeśli mamy aktywną linię
+        // Add point only when we have active line
         if (currentPolyline != null) {
             currentPolyline.addPoint(newPoint);
         }
@@ -416,36 +395,32 @@ public class RouteFragment extends Fragment {
     private void restorePath() {
         if (map == null) return;
 
-        // 1. Wyczyść stare linie z mapy (żeby nie dublować przy odświeżaniu)
         for (Polyline poly : allPolylines) {
             map.getOverlays().remove(poly);
         }
         allPolylines.clear();
         currentPolyline = null;
 
-        // 2. Pobierz historię z serwisu
+        // Get history from service
         ArrayList<ArrayList<GeoPoint>> segments = TrackingService.routeSegments;
 
         if (segments.isEmpty()) return;
 
-        // 3. Pętla przez wszystkie segmenty (kawałki trasy)
         for (ArrayList<GeoPoint> segmentPoints : segments) {
-            if (segmentPoints.isEmpty()) continue; // Pusty segment pomijamy
+            if (segmentPoints.isEmpty()) continue;
 
             Polyline polyline = new Polyline();
             polyline.setColor(Color.RED);
             polyline.setWidth(15f);
 
-            // Dodajemy punkty z pamięci serwisu do linii
             for (GeoPoint p : segmentPoints) {
                 polyline.addPoint(p);
             }
 
-            // Dodajemy linię do mapy i do naszej lokalnej listy
             map.getOverlays().add(polyline);
             allPolylines.add(polyline);
 
-            // Ostatni segment staje się tym "aktywnym", do którego dopisujemy bieżące punkty
+            // Last segment is now the active one
             currentPolyline = polyline;
         }
 

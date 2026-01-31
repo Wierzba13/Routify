@@ -21,8 +21,8 @@ public class PermissionManager {
     public static final int REQUEST_CODE = 100;
 
     public interface PermissionCallback {
-        void onPermissionsGranted(); // Wszystko przyznane
-        void onPermissionsDenied();  // Użytkownik odmówił
+        void onPermissionsGranted();
+        void onPermissionsDenied();
     }
 
     public PermissionManager(Activity activity, PermissionCallback callback) {
@@ -30,9 +30,6 @@ public class PermissionManager {
         this.callback = callback;
     }
 
-    // --- 1. SPRAWDZANIE STANU ---
-
-    // Czy mamy komplet uprawnień?
     public boolean hasAllPermissions() {
         boolean gps = ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
 
@@ -43,12 +40,10 @@ public class PermissionManager {
         return gps && notif;
     }
 
-    // Czy mamy chociaż GPS (żeby pokazać mapę)?
+    // if we have GPS we can display a map
     public boolean hasLocationPermission() {
         return ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
-
-    // --- 2. LOGIKA PROŚBY (To "ładne okienko") ---
 
     public void requestPermissionsWithRationale() {
         if (hasAllPermissions()) {
@@ -56,23 +51,19 @@ public class PermissionManager {
             return;
         }
 
-        // Budujemy treść komunikatu
-        StringBuilder message = new StringBuilder("Aplikacja potrzebuje dostępu do:\n");
-        if (!hasLocationPermission()) message.append("- Lokalizacji (aby rysować trasę)\n");
+        StringBuilder message = new StringBuilder("Aplikacja do prawidłowego działania wymaga uprawnień do:\n");
+        if (!hasLocationPermission()) message.append("- Lokalizacji \n");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                message.append("- Powiadomień (aby działać w tle)\n");
+                message.append("- Powiadomień \n");
             }
         }
-        message.append("\nBez tych uprawnień trening nie będzie działał poprawnie.");
 
-        // Wyświetlamy ŁADNE OKIENKO (AlertDialog)
         new AlertDialog.Builder(activity)
                 .setTitle("Wymagane uprawnienia")
                 .setMessage(message.toString())
-                .setCancelable(false) // Użytkownik musi kliknąć przycisk
+                .setCancelable(false)
                 .setPositiveButton("Przyznaj uprawnienia", (dialog, which) -> {
-                    // Dopiero teraz wywołujemy systemowe okienka
                     askSystemForPermissions();
                 })
                 .setNegativeButton("Nie teraz", (dialog, which) -> {
@@ -80,8 +71,6 @@ public class PermissionManager {
                 })
                 .show();
     }
-
-    // --- 3. WŁAŚCIWE ZAPYTANIE SYSTEMOWE ---
 
     protected void askSystemForPermissions() {
         List<String> permissionsToRequest = new ArrayList<>();
@@ -100,52 +89,48 @@ public class PermissionManager {
         ActivityCompat.requestPermissions(activity, permissionsToRequest.toArray(new String[0]), REQUEST_CODE);
     }
 
-    // --- 4. OBSŁUGA ODPOWIEDZI ---
-
     public void handleRequestPermissionsResult(int requestCode, int[] grantResults, String[] permissions) {
         if (requestCode != REQUEST_CODE) return;
 
-        // Ponowna weryfikacja - czy po operacji mamy już wszystko?
         if (hasAllPermissions()) {
             callback.onPermissionsGranted();
             return;
         }
 
-        // Jeśli tu jesteśmy, to znaczy, że czegoś brakuje (ODMOWA).
-        // Musimy sprawdzić, czy odmowa jest "Zwykła" czy "Trwała".
+        /*
+            If we're here we have some missing permissions,
+            so we have to make sure if user denided too many times or android blocked us
+         */
 
         boolean permanentlyDenied = false;
 
         for (int i = 0; i < permissions.length; i++) {
             String perm = permissions[i];
 
-            // Sprawdzamy tylko te uprawnienia, które zostały odrzucone
+            // Checking only denided permissions
             if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
 
-                // shouldShowRequestPermissionRationale zwraca:
-                // TRUE -> Jeśli użytkownik odmówił raz (można pytać ponownie)
-                // FALSE -> Jeśli użytkownik zaznaczył "Nie pytaj ponownie" LUB system zablokował (Permanent)
+                /* shouldShowRequestPermissionRationale returns:
+
+                    true -> when user denided one time
+                    false -> when user dont want us to ask again or system blocked us from asking again
+                 */
 
                 if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, perm)) {
                     permanentlyDenied = true;
-                    // Wystarczy, że jedno uprawnienie jest zablokowane trwale, żebyśmy musieli iść do ustawień
                     break;
                 }
             }
         }
 
         if (permanentlyDenied) {
-            // System zablokował prośbę. Wyświetlamy okno "Ostatniej Szansy"
+            // system blocked us
             showSettingsDialog();
         } else {
-            // Zwykła odmowa (użytkownik kliknął Anuluj/Odmów, ale nie zablokował trwale)
-            // Możemy tu albo nic nie robić, albo wyświetlić komunikat.
-            // Zgodnie z Twoim życzeniem - wyświetlamy komunikat i dajemy szansę poprawy.
             callback.onPermissionsDenied();
         }
     }
 
-    // Okno ostateczne - gdy Android zablokuje przycisk "Przyznaj"
     private void showSettingsDialog() {
         new AlertDialog.Builder(activity)
                 .setTitle("Uprawnienia zablokowane")
