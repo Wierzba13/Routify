@@ -1,5 +1,6 @@
 package com.example.routify;
 
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,9 +14,15 @@ import java.util.Locale;
 public class VehicleAdapter extends RecyclerView.Adapter<VehicleAdapter.VehicleViewHolder> {
 
     private List<Vehicle> vehicleList;
+    private final OnVehicleClickListener onVehicleClickListener;
 
-    public VehicleAdapter(List<Vehicle> vehicleList) {
+    public interface OnVehicleClickListener {
+        void onVehicleClick(Vehicle vehicle);
+    }
+
+    public VehicleAdapter(List<Vehicle> vehicleList, OnVehicleClickListener onVehicleClickListener) {
         this.vehicleList = vehicleList;
+        this.onVehicleClickListener = onVehicleClickListener;
     }
 
     @NonNull
@@ -28,10 +35,7 @@ public class VehicleAdapter extends RecyclerView.Adapter<VehicleAdapter.VehicleV
     @Override
     public void onBindViewHolder(@NonNull VehicleViewHolder holder, int position) {
         Vehicle vehicle = vehicleList.get(position);
-        holder.tvTitle.setText(vehicle.getTitle());
-        holder.tvSubtitle.setText(String.format(Locale.US, "%.1f l/100km", vehicle.getConsumption()));
-        holder.tvLabelBottom.setText(vehicle.getActionText());
-        holder.ivVehicle.setImageResource(vehicle.getImageResId());
+        holder.bind(vehicle, onVehicleClickListener);
     }
 
     @Override
@@ -41,19 +45,27 @@ public class VehicleAdapter extends RecyclerView.Adapter<VehicleAdapter.VehicleV
 
     public static class VehicleViewHolder extends RecyclerView.ViewHolder {
         ImageView ivVehicle;
-        TextView tvTitle, tvSubtitle, tvLabelBottom;
+        TextView tvTitle, tvSubtitle;
 
         public VehicleViewHolder(@NonNull View itemView) {
             super(itemView);
             ivVehicle = itemView.findViewById(R.id.ivVehicle);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvSubtitle = itemView.findViewById(R.id.tvSubtitle);
-            tvLabelBottom = itemView.findViewById(R.id.tvLabelBottom);
+        }
+
+        public void bind(final Vehicle vehicle, final OnVehicleClickListener onVehicleClickListener) {
+            tvTitle.setText(vehicle.getTitle());
+            tvSubtitle.setText(String.format(Locale.US, "%.1f l/100km", vehicle.getConsumption()));
+            if (vehicle.getImageUri() != null) {
+                ivVehicle.setImageURI(Uri.parse(vehicle.getImageUri()));
+            }
+            itemView.setOnClickListener(v -> onVehicleClickListener.onVehicleClick(vehicle));
         }
     }
+
     public void setVehicles(List<Vehicle> vehicles) {
         this.vehicleList = vehicles;
-
         notifyDataSetChanged();
     }
 }
